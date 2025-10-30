@@ -57,8 +57,19 @@ interface StreamingAnalysis {
     component: string;
     title: string;
     priority: string;
-    description: string;
+    description?: string;
+    message?: string;
+    specific_upgrade?: string;
+    benefit?: string;
+    action_required?: boolean;
   }>;
+  component_scores?: {
+    cpu?: { score: number; category: string };
+    ram?: { score: number; category: string };
+    gpu?: { score: number; category: string };
+    storage?: { score: number; category: string };
+    internet?: { score: number; category: string };
+  };
 }
 
 export default function ReportPage() {
@@ -401,33 +412,111 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* Recommendations */}
+        {/* Recommendations - Mostrar TODAS las recomendaciones */}
         {streamingAnalysis.recommendations && streamingAnalysis.recommendations.length > 0 && (
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mb-6">
             <h3 className="text-2xl font-bold mb-4">💡 Recomendaciones</h3>
-            <div className="space-y-3">
+            <p className="text-gray-400 text-sm mb-6">
+              Análisis detallado de cada componente del equipo para streaming
+            </p>
+            <div className="space-y-4">
               {streamingAnalysis.recommendations.map((rec, idx) => {
                 const priorityColors: Record<string, string> = {
                   'CRÍTICA': 'bg-red-500/20 text-red-300 border-red-500/30',
                   'ALTA': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
                   'MEDIA': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-                  'BAJA': 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                  'BAJA': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+                  'NINGUNA': 'bg-green-500/20 text-green-300 border-green-500/30'
                 };
+                
+                const getComponentIcon = (component: string) => {
+                  const icons: Record<string, string> = {
+                    'CPU': '🖥️',
+                    'RAM': '💾',
+                    'GPU': '🎮',
+                    'Almacenamiento': '💿',
+                    'Internet': '🌐'
+                  };
+                  return icons[component] || '⚙️';
+                };
+
+                // Obtener score del componente si está disponible
+                // Los component_scores pueden tener diferentes formatos de key
+                const componentKey = rec.component.toLowerCase();
+                const componentScore = streamingAnalysis.component_scores
+                  ? (streamingAnalysis.component_scores as any)[componentKey]?.score ||
+                    (streamingAnalysis.component_scores as any)[rec.component]?.score ||
+                    (streamingAnalysis.component_scores as any)[componentKey.charAt(0).toUpperCase() + componentKey.slice(1)]?.score
+                  : null;
+                const componentCategory = streamingAnalysis.component_scores
+                  ? (streamingAnalysis.component_scores as any)[componentKey]?.category ||
+                    (streamingAnalysis.component_scores as any)[rec.component]?.category ||
+                    (streamingAnalysis.component_scores as any)[componentKey.charAt(0).toUpperCase() + componentKey.slice(1)]?.category
+                  : null;
+
                 return (
                   <div 
                     key={idx}
-                    className={`p-4 rounded-lg border ${priorityColors[rec.priority] || priorityColors['BAJA']}`}
+                    className={`p-5 rounded-lg border-2 ${priorityColors[rec.priority] || priorityColors['BAJA']} transition-all hover:shadow-lg`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="font-semibold">{rec.title}</div>
-                      <span className="text-xs px-2 py-1 rounded bg-white/10">
+                    {/* Header con componente y score */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{getComponentIcon(rec.component)}</div>
+                        <div>
+                          <div className="font-bold text-lg">{rec.component}</div>
+                          {componentScore !== null && (
+                            <div className="text-sm text-gray-300">
+                              {componentScore}% rendimiento
+                              {componentCategory && (
+                                <span className="ml-2 px-2 py-0.5 rounded text-xs bg-white/10">
+                                  {componentCategory}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-xs px-3 py-1 rounded font-semibold ${
+                        rec.priority === 'NINGUNA' ? 'bg-green-500/30 text-green-300' : 'bg-white/10'
+                      }`}>
                         {rec.priority}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-300 mb-1">{rec.component}</div>
-                    {rec.description && (
-                      <div className="text-sm text-gray-400 mt-2">{rec.description}</div>
-                    )}
+
+                    {/* Título y mensaje principal */}
+                    <div className="mb-3">
+                      <h4 className="font-semibold text-base mb-2">{rec.title}</h4>
+                      {(rec.message || rec.description) && (
+                        <p className="text-sm text-gray-300 leading-relaxed">
+                          {rec.message || rec.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Información adicional */}
+                    <div className="space-y-2 mt-3 pt-3 border-t border-white/10">
+                      {rec.specific_upgrade && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <span className="text-gray-400 font-medium min-w-[120px]">Upgrade recomendado:</span>
+                          <span className="text-gray-300">{rec.specific_upgrade}</span>
+                        </div>
+                      )}
+                      {rec.benefit && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <span className="text-gray-400 font-medium min-w-[120px]">Beneficio:</span>
+                          <span className="text-gray-300">{rec.benefit}</span>
+                        </div>
+                      )}
+                      {rec.action_required && (
+                        <div className="flex items-center gap-2 mt-2 p-2 bg-red-500/10 border border-red-500/30 rounded">
+                          <span className="text-lg">⚠️</span>
+                          <span className="text-sm text-red-300 font-medium">
+                            Acción requerida para streaming estable
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
